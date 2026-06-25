@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎬 我的影劇收藏筆記本</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #141414; color: white; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; color: #aaa; }
+        input, textarea, select { width: 100%; padding: 10px; border: 1px solid #333; background: #222; color: white; border-radius: 5px; box-sizing: border-box; }
+        button { background-color: #e50914; color: white; border: none; padding: 10px 20px; font-weight: bold; cursor: pointer; border-radius: 5px; }
+        button:hover { background-color: #b81d24; }
+        
+        /* 課堂要求的網頁效果：翻轉卡片 */
+        .preview-section { margin-top: 40px; display: flex; justify-content: center; }
+        .card { width: 300px; height: 450px; perspective: 1000px; cursor: pointer; }
+        .card-inner { width: 100%; height: 100%; transition: transform 0.6s; transform-style: preserve-3d; position: relative; }
+        .card.flipped .card-inner { transform: rotateY(180deg); }
+        .card-front, .card-back { width: 100%; height: 100%; position: absolute; backface-visibility: hidden; border-radius: 10px; overflow: hidden; border: 2px solid #333; }
+        .card-front { background: #222; display: flex; flex-direction: column; justify-content: space-between; }
+        .card-front img { width: 100%; height: 85%; object-fit: cover; }
+        .card-front .title { text-align: center; padding: 10px; font-weight: bold; background: rgba(0,0,0,0.7); }
+        .card-back { background: #333; transform: rotateY(180deg); padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🎥 新增影劇收藏</h2>
+        
+        <div class="form-group">
+            <label>請輸入英文片名（例如: Inception, Avatar）</label>
+            <input type="text" id="search-title" placeholder="輸入電影名稱...">
+            <button type="button" onclick="fetchMovieData()" style="margin-top: 10px; background-color: #008CBA;">🔍 自動填入電影資料</button>
+        </div>
+        
+        <hr style="border: 0.5px solid #333; margin: 20px 0;">
+
+        <form id="movie-form" onsubmit="submitToGAS(event)">
+            <div class="form-group"><label>電影名稱</label><input type="text" id="movie-title" required></div>
+            <div class="form-group"><label>海報網址</label><input type="url" id="movie-poster"></div>
+            <div class="form-group"><label>導演</label><input type="text" id="movie-director"></div>
+            <div class="form-group"><label>上映年份</label><input type="text" id="movie-year"></div>
+            <div class="form-group"><label>劇情大綱</label><textarea id="movie-plot" rows="3"></textarea></div>
+            
+            <div class="form-group">
+                <label>我的評分</label>
+                <select id="movie-rating"><option>⭐⭐⭐⭐⭐</option><option>⭐⭐⭐⭐</option><option>⭐⭐⭐</option><option>⭐⭐</option><option>⭐</option></select>
+            </div>
+            <div class="form-group"><label>觀後心得</label><textarea id="movie-review" rows="3" required placeholder="寫下你的心得..."></textarea></div>
+            
+            <button type="button" onclick="updatePreview()">👁️ 更新預覽卡片</button>
+            <button type="submit">💾 儲存至雲端試算表</button>
+        </form>
+
+        <div class="preview-section">
+            <div class="card" id="preview-card" onclick="this.classList.toggle('flipped')">
+                <div class="card-inner">
+                    <div class="card-front">
+                        <img id="card-img" src="https://via.placeholder.com/300x400?text=No+Poster" alt="海報">
+                        <div class="title" id="card-title">電影名稱預覽</div>
+                    </div>
+                    <div class="card-back">
+                        <div>
+                            <h3 id="card-back-title" style="margin-top:0; color:#e50914;">電影名稱</h3>
+                            <p><strong>導演:</strong> <span id="card-director">-</span></p>
+                            <p><strong>年份:</strong> <span id="card-year">-</span></p>
+                            <p style="font-size: 14px; color: #ccc;"><strong>劇情:</strong> <span id="card-plot">-</span></p>
+                        </div>
+                        <div>
+                            <p style="border-top: 1px solid #555; padding-top: 10px;"><strong>我的評分:</strong> <span id="card-rating">⭐⭐⭐⭐⭐</span></p>
+                            <p><strong>我的心得:</strong> <span id="card-review">-</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 2. 呼叫 OMDb API 自動填入資料
+        async function fetchMovieData() {
+            const title = document.getElementById('search-title').value;
+            if(!title) return alert('請先輸入英文片名！');
+            
+            // 這裡使用免費的 OMDb API（已附帶免費 Key）
+            const url = `https://www.omdbapi.com/?t=${encodeURIComponent(title)}&apikey=58286a63`;
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                if(data.Response === "True") {
+                    document.getElementById('movie-title').value = data.Title;
+                    document.getElementById('movie-poster').value = data.Poster;
+                    document.getElementById('movie-director').value = data.Director;
+                    document.getElementById('movie-year').value = data.Year;
+                    document.getElementById('movie-plot').value = data.Plot;
+                    updatePreview();
+                    alert('資料自動抓取成功！');
+                } else {
+                    alert('找不到該電影，請檢查英文拼字。');
+                }
+            } catch (error) {
+                alert('API 連線失敗');
+            }
+        }
+
+        // 即時更新卡片效果
+        function updatePreview() {
+            document.getElementById('card-title').value = document.getElementById('movie-title').value;
+            document.getElementById('card-title').innerText = document.getElementById('movie-title').value || "電影名稱預覽";
+            document.getElementById('card-back-title').innerText = document.getElementById('movie-title').value || "電影名稱預覽";
+            document.getElementById('card-img').src = document.getElementById('movie-poster').value || "https://via.placeholder.com/300x400?text=No+Poster";
+            document.getElementById('card-director').innerText = document.getElementById('movie-director').value || "-";
+            document.getElementById('card-year').innerText = document.getElementById('movie-year').value || "-";
+            document.getElementById('card-plot').innerText = document.getElementById('movie-plot').value || "-";
+            document.getElementById('card-rating').innerText = document.getElementById('movie-rating').value;
+            document.getElementById('card-review').innerText = document.getElementById('movie-review').value || "-";
+        }
+
+        // 3. 透過 GAS 將資料存入試算表
+        async function submitToGAS(event) {
+            event.preventDefault();
+            
+            // ⚠️ 記得把下面換成你自己在第一步部署得到的 GAS 網址！
+            const GAS_URL = "https://script.google.com/macros/s/AKfycbzVhC-JkDC2w8WE1cjsZnNM8CrKn4kxqYuibSIcnntFojEH6NG3o0lKdtGYrrtkYVMG/exec"; 
+            
+            if(GAS_URL === "https://script.google.com/macros/s/AKfycbzVhC-JkDC2w8WE1cjsZnNM8CrKn4kxqYuibSIcnntFojEH6NG3o0lKdtGYrrtkYVMG/exec") {
+                return alert("請先在程式碼中填入你的 GAS 部署網址！");
+            }
+
+            const formData = {
+                title: document.getElementById('movie-title').value,
+                poster: document.getElementById('movie-poster').value,
+                director: document.getElementById('movie-director').value,
+                year: document.getElementById('movie-year').value,
+                plot: document.getElementById('movie-plot').value,
+                rating: document.getElementById('movie-rating').value,
+                review: document.getElementById('movie-review').value
+            };
+
+            try {
+                const response = await fetch(GAS_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(formData)
+                });
+                const result = await response.json();
+                if(result.status === 'success') {
+                    alert('成功存入 Google 試算表！');
+                    document.getElementById('movie-form').reset();
+                } else {
+                    alert('儲存失敗：' + result.message);
+                }
+            } catch (error) {
+                alert('連線至 GAS 失敗，請確認 GAS 是否正確部署並允許任何人存取。');
+            }
+        }
+    </script>
+</body>
+</html>
